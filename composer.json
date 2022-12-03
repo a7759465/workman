@@ -2,6 +2,7 @@
     "name": "a7759465/workerman",
     "autoload": {
         "psr-4": {
+            "" : "./",
             "A7759465\\Workerman\\": "src/"
         }
     },

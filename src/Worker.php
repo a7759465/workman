@@ -81,8 +81,8 @@ class Worker
     ];
     //可用的事件循环
     protected static $_availableEventLoops = [
-        'event'    => '\Sonj\MyWorkerman\Events\Event',
-        'libevent' => '\Sonj\MyWorkerman\Events\Libevent'
+        'event'    => '\A7759465\Workerman\Events\Event',
+        'libevent' => '\A7759465\Workerman\Events\Libevent'
     ];
     //PHP内置协议
     protected static $_builtinTransports = [
@@ -120,17 +120,17 @@ class Worker
     {
         static::checkSapEnv();
         static::init();
-        static::lock();
-        static::parseCommand();
-        static::daemonize();
-        static::initWorkers();
-        static::installSignal();
-        static::saveMasterPid();
-        static::lock(\LOCK_UN);
-        static::displayUI();
-        static::forkWorkers();
-        static::resetStd();
-        static::monitorWorkers();
+//        static::lock();
+//        static::parseCommand();
+//        static::daemonize();
+//        static::initWorkers();
+//        static::installSignal();
+//        static::saveMasterPid();
+//        static::lock(\LOCK_UN);
+//        static::displayUI();
+//        static::forkWorkers();
+//        static::resetStd();
+//        static::monitorWorkers();
     }
 
     /**
@@ -151,9 +151,41 @@ class Worker
      */
     protected static function init()
     {
+        //注册error处理函数
         \set_error_handler(function ($code, $msg, $file, $line) {
             Worker::safeEcho("$msg in file $file on line $line\n");
         });
+
+        //起始文件
+        $backtrace = \debug_backtrace();    //产生一条回溯跟踪
+        static::$_startFile = $backtrace[\count($backtrace) - 1]['file'];   //"/home/sonj/workspace/myworkerman/src/Worker.php"
+
+        $unique_prefix = \str_replace('/', '_', static::$_startFile);   //_home_sonj_workspace_myworkerman_src_Worker.php
+
+        //pid 文件
+        if (empty(static::$pidFile)) {
+            static::$pidFile = __DIR__ . "/../$unique_prefix.pid";
+        }
+        //日志文件
+        if (empty(static::$logFile)) {
+            static::$logFile = __DIR__ . '/../workerman.log';
+        }
+        //新建日志文件
+        $log_file = (string)static::$logFile;
+        if (!\is_file($log_file)) {
+            \touch($log_file);
+            \chmod($log_file, 0622);
+        }
+        //启动中
+        static::$_status = static::STATUS_STARTING;
+        //方便统计
+        static::$_globalStatistics['start_timestamp'] = \time();
+        //进程名称
+        static::setProcessTitle(static::$processTitle . ': master process  start_file=' . static::$_startFile);
+        //初始化 worker id
+        static::initId();
+        //初始化计时器
+        Timer::init();
     }
 
     /**
@@ -210,13 +242,43 @@ class Worker
         return static::$_outputStream = $stream;
     }
 
+    /**
+     * 设置进程名称
+     * @param $title
+     */
+    protected static function setProcessTitle($title)
+    {
+        \set_error_handler(function () {
+        });  //暂时屏蔽error处理函数
+        // >= php 5.5
+        if (\function_exists('cli_set_process_title')) {
+            \cli_set_process_title($title);
+        } elseif (\extension_loaded('proctitle') && \function_exists('setproctitle')) {//php < 5.5
+            \setproctitle($title);
+        }
+        \restore_error_handler();   //还原error处理函数
+    }
+
+    /**
+     * 初始化Worker id   static::$_workers数组在 外部实例化Worker的时候  __construct方法会自动添加数据
+     * 重新封装$_idMap
+     */
+    protected static function initId()
+    {
+        foreach (static::$_workers as $worker_id => $worker) {
+            $new_id_map = [];
+            $worker->count = $worker->count < 1 ?: 1;
+            for ($key = 0; $key < $worker->count; $key++) {
+                $new_id_map[$key] = static::$_idMap[$worker_id][$key] ?? 0;
+            }
+            static::$_idMap[$worker_id] = $new_id_map;
+        }
+    }
+
     public function test()
     {
-        static::safeEcho("hello<w>white<g>green<n>end");
+        echo "\nHi: 123";
+        var_dump(debug_backtrace());
     }
 
 }
-
-(new Worker())->test();
-echo 123;
-
