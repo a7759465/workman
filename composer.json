@@ -1,0 +1,15 @@
+{
+    "name": "a7759465/workerman",
+    "autoload": {
+        "psr-4": {
+            "A7759465\\Workerman\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "sonj tse",
+            "email": "116265858@qq.com"
+        }
+    ],
+    "require": {}
+}
